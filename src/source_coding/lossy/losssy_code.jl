@@ -1,3 +1,15 @@
+#=
+    Abstract type for lossy codes.
+    A lossy code is a coding scheme that allows for some distortion in the reconstruction of the original message.
+    It is characterized by an input alphabet U, an output alphabet X, and a reconstruction alphabet Y.
+    The encode! function maps a vector of input symbols u to a vector of output symbols x.
+    The decode! function maps a vector of output symbols x to a vector of reconstructed symbols û.
+    The distortion function measures the distortion between the original input symbols u and the reconstructed symbols û.
+    The input_distribution function returns the probability distribution of the input symbols.
+    The rate function returns the rate of the code, defined as the ratio of the number of input symbols to the number of output symbols.
+    The blocklength function returns the length of the input and output vectors.
+    The messagelength function returns the length of the message being encoded or decoded.
+=#
 abstract type LossyCode{U,X,Y} end
 
 encode!(c::LossyCode{U,X,Y}, u::Vector{U}, dst::Vector{X}) where {U,X,Y} = ABSTRACT(LOSSY_CODE_TAG, "encode!")

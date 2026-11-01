@@ -1,3 +1,13 @@
+#=
+    A concrete implementation of a lossy polar code.
+    This struct wraps around a PolarCode and provides methods for encoding, decoding, and calculating distortion.
+    It also provides methods to retrieve the input distribution, rate, blocklength, and messagelength of the code.
+    The encode! method encodes a vector of input bits into a vector of output bits using the underlying PolarCode's decode! method.
+    The decode! method decodes a vector of output bits into a vector of reconstructed bits using the underlying PolarCode's encode! method.
+    The distortion method calculates the Hamming distance between the original input bits and the reconstructed bits.
+    The input_distribution method returns the target distribution of the underlying PolarCode.
+    The rate, blocklength, and messagelength methods return the corresponding properties of the underlying PolarCode.
+=#
 struct ConcreteLossyPolarCode <: LossyPolarCode
     _pc::PolarCode
 end
