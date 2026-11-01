@@ -9,7 +9,6 @@ include("compress.jl")
     For further implementation of missing entries, see e.g. https://users.ece.cmu.edu/~koopman/crc/notes.html
 """
 function getSpecs(crclen::Integer)
-    ERROR(UTILS_CRC_TAG, "I'm deprecated")
     if crclen == 3
         return spec(3, 0x7, 0x0, false, false, 0x0, 0x0)#CRC_3_ROHC#spec(3, 0x7, 0x0, false, false, 0x0, 0x0)#CRC_3_ROHC
     elseif crclen == 4
@@ -62,10 +61,7 @@ end
 
 getCRC(crclen::NAT) = crc(getSpecs(crclen))
 
-gen_spec(width::NAT, poly::UInt) = begin
-    ERROR(UTILS_CRC_TAG, "I'm deprecated")
-    spec(width, poly, 0x00, false, false, 0x00, 0x00)
-end
+gen_spec(width::NAT, poly::UInt) = spec(width, poly, 0x00, false, false, 0x00, 0x00)
 """
     @brief compute the crc of a given bit vector [b_1, b_2, ..., b_n]
 
@@ -75,46 +71,31 @@ end
     @param u the vector to ocmpute the remainder thereofe
 """
 function crc_compute!(width::NAT, poly::Vector{BIT}, u::Vector{BIT}, work::Vector{BIT}, dst::Vector{BIT})
-    ERROR(UTILS_CRC_TAG, "I'm deprecated")
     n = length(u)
-    n == length(work) || ERROR(UTILS_CRC_TAG, "work tape is not of the right size (should be $n, is $(length(work)))")
-    width == length(dst) || ERROR(UTILS_CRC_TAG, "destination tape's size does not match width ($(length(dst)) != $width)")
-    width+1 == length(poly) || ERROR(UTILS_CRC_TAG, "polynomial length doesn't match width (should be $(width+1), is $(length(poly)))")
-    poly[1] == 1 || ERROR(UTILS_CRC_TAG, "msb of poly is not 1")
-    width > n && ERROR(UTILS_CRC_TAG, "length of vector must be at least as big as width ($n < $width)")
+    n == length(work) || error("work tape is not of the right size (should be $n, is $(length(work)))")
+    width == length(dst) || error("destination tape's size does not match width ($(length(dst)) != $width)")
+    width + 1 == length(poly) || error("polynomial length doesn't match width (should be $(width+1), is $(length(poly)))")
+    poly[1] == 1 || error("msb of poly is not 1")
+    width > n && error("length of vector must be at least as big as width ($n < $width)")
 
     copy!(work, u)
     if width != n
         @inbounds for i in 1:(n-width)
             work[i] == 0 && continue
-            for j in (width):-1:0
-                bit = BIT(1&(poly >> j))
-                work[i+(width-j)] ⊻= bit
+            for j in 0:width
+                work[i+j] ⊻= poly[j+1]
             end
-            work[i] == 0 || ERROR(UTILS_CRC_TAG, "something went wrong during computation (bug)")
+            work[i] == 0 || error("something went wrong during computation (bug)")
         end
     end
-    @inbounds for o in 0:(width-1)
-        dst[o] = work[end-o]
+    @inbounds for o in 1:width
+        dst[o] = work[end-o+1]
     end
     return dst
 end
 
-crc_compute(
-    width::NAT,
-    poly::UInt,
-    u::Vector{BIT},
-    rev::Bool=false,
-    msb_first::Bool=false,
-    shift::Bool=false,
-    chunks::Vector{UInt8}
-) = crc(gen_spec(width, poly))(compress!(u, msb_first, shift, rev, chunks))
+crc_compute(width::NAT, poly::UInt, u::Vector{BIT}, rev::Bool=false, msb_first::Bool=false, shift::Bool=false) =
+    crc_compute(width, poly, u, zeros(UInt8, ceil(NAT, length(u)/8)), rev, msb_first, shift)
 
-crc_compute(
-    width::NAT,
-    poly::UInt,
-    u::Vector{BIT},
-    rev::Bool=false,
-    msb_first::Bool=false,
-    shift::Bool=false
-) = crc_compute(width, poly, u, rev, msb_first, shift, zeros(UInt8, ceil(NAT, length(u)/8)))
+crc_compute(width::NAT, poly::UInt, u::Vector{BIT}, chunks::Vector{UInt8}, rev::Bool=false, msb_first::Bool=false, shift::Bool=false) =
+    crc(gen_spec(width, poly))(compress!(u, msb_first, shift, rev, chunks))
