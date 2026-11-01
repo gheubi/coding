@@ -2,7 +2,7 @@ include("fetch_rowmerge.jl")
 
 using RowEchelon
 
-
+# determines wether i ⪯ j according to the partial order on bit-channels
 ⪯(i::NAT, j::NAT) = begin
     function binarydom(i0, j0)
         m = max(i0, j0)
@@ -30,6 +30,8 @@ using RowEchelon
     binarydom(i-1, j-1) || leftswap(i-1, j-1)
 end
 
+# a rate profile q is said to be decreasing if
+# for all i ∈ q and j ∈ [1, n] : i ≤ j ⟹ j ∉ q
 is_decreasing(q::Vector{NAT}, N::NAT) = begin
     for i ∈ q,j ∈ 1:N
         if i ⪯ j && j ∉ q
@@ -38,6 +40,9 @@ is_decreasing(q::Vector{NAT}, N::NAT) = begin
     end
     return true
 end
+
+# a rate profile q is said to be decreasing if
+# for all i ∈ q and j ∈ [1, n] : i ≤ j ⟹ j ∉ q
 is_decreasing(paddedp::Vector{Bool}) = begin
     N = length(paddedp)
     @inbounds for i in eachindex(paddedp)
@@ -54,18 +59,23 @@ is_decreasing(paddedp::Vector{Bool}) = begin
     return true
 end
 
+# returns the weigth of the row of the polar trasform at index i
+# @warning this function use 0-based indexing
 function polar_row_weight_0(i0::NAT)
     1 << weight(i0)
 end
 
+# returns the weigth of the merges rows at index i and j
+# @waring this function use 0-based indexing
 function merged_polar_row_weight_0(i0::NAT, j0::NAT)
-    """
+    #=
         See theorem 1 of Gelincik : "Achieving PAC Code Performance 
         with SCL decoding without extra computational complexity"
-    """
+    =#
     polar_row_weight_0(i0) + polar_row_weight_0(j0) - 2*polar_row_weight_0(i0&j0)
 end
 
+# finds the frozen rows that increasing the weigths
 function increasing_weight_frozen_rows!(padded_info_set::Vector{Bool}, i::NAT, dst1::Vector{Bool}, dst2::Vector{Bool})
     N = length(padded_info_set)
     N0 = N-1
@@ -137,11 +147,11 @@ function max_padded(padded_vector::Vector{Bool})
     return i
 end
 function min_weight_number(padded_info_set::Vector{Bool}, min_weight::NAT)
-    """
+    #=
         This assumes the infoset I satisfies the partial order property.
         We here rely on the paper by Rowshan : On the formation of min-weight
         Codewords of Polar/PAC codes and its applications.
-    """
+    =#
     N = length(padded_info_set)
     N0 = N-1
     n = convert(NAT, log2(N))
@@ -263,9 +273,18 @@ function min_weight_number(padded_info_set::Vector{Bool}, merging::Vector{NTuple
     return nweight
 end
 
-"""
-    Note : this function should never be directly called, please prefer its alternative signature who saves compuation results
-"""
+#=
+    Compute optimal merges for the info set padded_info_set by finding pairs of indices (r, m) such that the weigth 
+    spectrum of the resulting code is improved. The algorithm is forbidden to select merges from the forbidden set
+
+    @note this function should never be directly called, please prefer its alternative signature who saves compuation results
+    @note see Zunker et al, "Row-Merged Polar Codes: Analysis, Design, and Decoder Implementation" for the origin of the algorithm
+    
+    @warning this function doesn't give any optimality guarrantee when the forbiden_set is not empty, or if the padded_info_set
+        is not decreasing (in the sense of is_decreasing())
+
+    @return a set of merges R = {(r, m) | r in padded_info_set}
+=#
 function merge_rows(padded_info_set::Vector{Bool}, forbiden_set::Vector{NAT})
    N = length(padded_info_set)
 
@@ -349,6 +368,17 @@ function merge_rows(padded_info_set::Vector{Bool}, forbiden_set::Vector{NAT})
         end
     end
 end
+#=
+    Compute optimal merges for the info set padded_info_set by finding pairs of indices (r, m) such that the weigth 
+    spectrum of the resulting code is improved. The algorithm is forbidden to select merges from the forbidden set
+
+    @note see Zunker et al, "Row-Merged Polar Codes: Analysis, Design, and Decoder Implementation" for the origin of the algorithm
+    
+    @warning this function doesn't give any optimality guarrantee when the forbiden_set is not empty, or if the padded_info_set
+        is not decreasing (in the sense of is_decreasing())
+
+    @return a set of merges R = {(r, m) | r in padded_info_set}
+=#
 function merge_rows(info_set::Vector{NAT}, N::NAT, forbiden_set::Vector{NAT})
     id =  merges_already_present(N, info_set, forbiden_set)
     if id > 0 
@@ -363,8 +393,20 @@ function merge_rows(info_set::Vector{NAT}, N::NAT, forbiden_set::Vector{NAT})
     dump_merges(N, info_set, forbiden_set, merges)
     return merges
 end
+#=
+    Compute optimal merges for the info set padded_info_set by finding pairs of indices (r, m) such that the weigth 
+    spectrum of the resulting code is improved.
+
+    @note see Zunker et al, "Row-Merged Polar Codes: Analysis, Design, and Decoder Implementation" for the origin of the algorithm
+    
+    @warning this function doesn't give any optimality guarrantee if the padded_info_set
+        is not decreasing (in the sense of is_decreasing())
+
+    @return a set of merges R = {(r, m) | r in padded_info_set}
+=#
 merge_rows(info_set::Vector{NAT}, N::NAT) = merge_rows(info_set, N, zeros(NAT, 0))
 
+# Find the message length K of a Reed-Muller code RM(r,n)
 function rm_k(r::NAT, n::NAT)
     acc = 0
     for l ∈ 0:r
@@ -372,6 +414,7 @@ function rm_k(r::NAT, n::NAT)
     end
     return acc
 end
+# Find the smallest r of a Reed-Muller code RM(r, n) with a messagelength >= K
 function find_least_r(n::NAT, K::NAT)
     #generated by chatGPT
     S = 0
@@ -383,6 +426,9 @@ function find_least_r(n::NAT, K::NAT)
     end
     return -1
 end
+
+# Select the K indices of an information set that have the highest reliabilites and such that the
+# weight of the rows of the polar transform is optimized. 
 function target_next_rm_code(N::NAT, K::NAT, reliabilities::Vector{REAL}, forbiden_set::Vector{NAT})
     ranking = sort(reverse(1:N), by=i->reliabilities[i])
     n = convert(NAT, log2(N))

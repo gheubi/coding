@@ -1,11 +1,19 @@
+# a wrapper around the PolarCode struct to be able to pass it to C-code
 mutable struct PcWrapper
     pc::PolarCode
 end
 
+#=
+    A structure to hold the result of a SCL decoding operation.
+    It contains the paths, LLRs and metrics of the decoding process.
+    The paths are stored as a vector of vectors of bits, the LLRs as a vector of vectors of real numbers, and the metrics as a vector of real numbers.
+    The size of the paths and LLRs is (L, N), where L is the list size and N is the blocklength of the code.
+    The size of the metrics is (L,).
+=#
 struct SCLRes
-    paths::Vector{Vector{BIT}}    #of size (L, N)
-    llr::Vector{Vector{REAL}}   #of size (L, N)
-    metrics::Vector{REAL}       #of size (L,)
+    paths::Vector{Vector{BIT}}      # of size (L, N)
+    llr::Vector{Vector{REAL}}       # of size (L, N)
+    metrics::Vector{REAL}           # of size (L,)
 end
 
 Base.show(io::IO, s::SCLRes) = begin
@@ -16,6 +24,7 @@ Base.show(io::IO, s::SCLRes) = begin
     print(io, st)
 end
 
+# return an empty SCLRes structure with the given blocklength and list size
 function emptySCL(N::NAT, L::NAT)
     paths = Vector{Vector{BIT}}(undef, L)
     llrs = Vector{Vector{REAL}}(undef, L)
@@ -26,6 +35,11 @@ function emptySCL(N::NAT, L::NAT)
     SCLRes(paths, llrs, zeros(REAL, L))
 end
 
+#= 
+    A structure to hold the result of a SCL decoding operation in C-code.
+    It contains the paths, LLRs and metrics of the decoding process.
+    In the form of C-Pointers
+=#
 mutable struct SCLResC
     paths::Ptr{Ptr{UInt8}}        # bit **paths
     llrs::Ptr{Ptr{Float64}}      # real **llrs (real = double)
@@ -33,13 +47,16 @@ mutable struct SCLResC
     N::UInt16                    # nat N
     paths_size::UInt16           # nat paths_size
 end
+# pointer to a C struct 
 mutable struct SCLWorkingDS
     ptr::Ptr{Cvoid}
 end
+# pointer to a C struct
 mutable struct SCLResDS
     ptr::Ptr{Cvoid}
 end
 
+# Init in C a ScLWorkingDS and return a pointer to it
 function get_scl_working_ds(N::NAT, L::NAT)
     res = ccall(
         (:init_llrtreelist_working_args, "src/channel_coding/polar_code/llr_tree.so"),
@@ -59,6 +76,8 @@ function get_scl_working_ds(N::NAT, L::NAT)
     end
     return working_args
 end
+
+# Init in C a ScLResDS and return a pointer to it
 function get_scl_res_ds(N::NAT, L::NAT)
     res = ccall(
         (:tree_list_init, "src/channel_coding/polar_code/llr_tree.so"),
@@ -78,6 +97,8 @@ function get_scl_res_ds(N::NAT, L::NAT)
     end
     return res_args
 end
+
+# Converts an SCLResC C struct to a SCLRes Julia struct
 function convert_to_scl_res!(c_result::SCLResC, dst::SCLRes)
     N = Int(c_result.N)
     N == length(dst.llr[1]) || 
@@ -102,22 +123,31 @@ function convert_to_scl_res!(c_result::SCLResC, dst::SCLRes)
     
     return dst
 end
+
+# Converts an SCLResDS C struct to a SCLRes Julia struct
 function convert_to_scl_res!(res::SCLResDS, dst::SCLRes)
     c_result = unsafe_load(Ptr{SCLResC}(res.ptr))
     return convert_to_scl_res!(c_result, dst)
 end
+
+# function to decide dynamically frozen bits, called from the C code
 function c_decide_dynamical_frozen_bit(pc_ptr::Ptr{Cvoid}, u_ptr::Ptr{UInt8}, index::UInt16, N::UInt16)
     pc_ref = unsafe_pointer_to_objref(pc_ptr)::PcWrapper
     u = unsafe_wrap(Vector{UInt8}, u_ptr, N; own=false)
     index_conv = convert(NAT, index)
     return decide_dynmically_frozen_bit(pc_ref.pc, u, index_conv)
 end
+# C Function pointer
 const c_dynamic_frozen_bit_at = @cfunction(
     c_decide_dynamical_frozen_bit,
     UInt8,
     (Ptr{Cvoid}, Ptr{UInt8}, UInt16, UInt16)
 )
 
+#=
+    Runs the SCL decoding algortihm to decode the unknown bits
+    @return a SCLRes containing the final decoding path, along with their metrics and llrs
+=#
 function scl_decode!(
     llrs_vec::Vector{REAL},
     L::NAT,
@@ -150,12 +180,15 @@ function scl_decode!(
     return convert_to_scl_res!(ptr_r, dst)
 end
 
+# returns the most likely path from the decoded messages in SCLRes, without checking their validity
 function mostlikely!(scl::SCLRes, dst::Vector{BIT})
     isempty(scl.metrics) && ERROR(PC_SCL_TAG, "empty scl metrics")
     minI = argmin(i -> iszero(scl.metrics[i]) ? ∞ : scl.metrics[i], eachindex(scl.metrics))
     return copy!(dst, scl.paths[minI])
 end
 
+# returns the most likely valid path from the decoded messages in SCLRes
+# if no path is valid, returns the most likely one
 function mostlikely!(scl::SCLRes, pc::PolarCode, dst::Vector{BIT})
     metrics = scl.metrics
     isempty(metrics) && ERROR(PC_SCL_TAG, "empty scl metrics")
