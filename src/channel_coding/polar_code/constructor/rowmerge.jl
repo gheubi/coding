@@ -30,7 +30,7 @@ using RowEchelon
     binarydom(i-1, j-1) || leftswap(i-1, j-1)
 end
 
-isDecreasing(q::Vector{NAT}, N::NAT) = begin
+is_decreasing(q::Vector{NAT}, N::NAT) = begin
     for i ∈ q,j ∈ 1:N
         if i ⪯ j && j ∉ q
             return false
@@ -38,7 +38,7 @@ isDecreasing(q::Vector{NAT}, N::NAT) = begin
     end
     return true
 end
-isDecreasing(paddedp::Vector{Bool}) = begin
+is_decreasing(paddedp::Vector{Bool}) = begin
     N = length(paddedp)
     @inbounds for i in eachindex(paddedp)
         if paddedp[i]
@@ -54,25 +54,26 @@ isDecreasing(paddedp::Vector{Bool}) = begin
     return true
 end
 
-function polarRowWeigth0(i0::NAT)
+function polar_row_weight_0(i0::NAT)
     1 << weight(i0)
 end
-function mergedPolarRowWeigth0(i0::NAT, j0::NAT)
+
+function merged_polar_row_weight_0(i0::NAT, j0::NAT)
     """
         See theorem 1 of Gelincik : "Achieving PAC Code Performance 
         with SCL decoding without extra computational complexity"
     """
-    polarRowWeigth0(i0) + polarRowWeigth0(j0) - 2*polarRowWeigth0(i0&j0)
+    polar_row_weight_0(i0) + polar_row_weight_0(j0) - 2*polar_row_weight_0(i0&j0)
 end
 
-function increasingWeightFrozenRows!(paddedInfoSet::Vector{Bool}, i::NAT, dst1::Vector{Bool}, dst2::Vector{Bool})
-    N = length(paddedInfoSet)
+function increasing_weight_frozen_rows!(padded_info_set::Vector{Bool}, i::NAT, dst1::Vector{Bool}, dst2::Vector{Bool})
+    N = length(padded_info_set)
     N0 = N-1
     i0 = i-1
-    baseW = polarRowWeigth0(i0)
+    base_w = polar_row_weight_0(i0)
     @inbounds for f0 in 0:N0
-        if f0 > i0 && !paddedInfoSet[f0+1]
-            b = mergedPolarRowWeigth0(i0, f0) > baseW
+        if f0 > i0 && !padded_info_set[f0+1]
+            b = merged_polar_row_weight_0(i0, f0) > base_w
             dst1[f0+1] = b
             dst2[f0+1] = !b
         else 
@@ -82,24 +83,24 @@ function increasingWeightFrozenRows!(paddedInfoSet::Vector{Bool}, i::NAT, dst1::
     end
     return dst1, dst2
 end
-increasingWeightFrozenRows(paddedInfoSet::Vector{Bool}, i::NAT) = 
-    increasingWeightFrozenRows!(paddedInfoSet, i, zeros(Bool, length(paddedInfoSet)), zeros(Bool, length(paddedInfoSet)))
+increasing_weight_frozen_rows(padded_info_set::Vector{Bool}, i::NAT) = 
+    increasing_weight_frozen_rows!(padded_info_set, i, zeros(Bool, length(padded_info_set)), zeros(Bool, length(padded_info_set)))
      
 
-function minDist(paddedInfoSet::Vector{Bool}, merging)
-    if isDecreasing(paddedInfoSet)
-        return minDist(paddedInfoSet)
+function min_dist(padded_info_set::Vector{Bool}, merging)
+    if is_decreasing(padded_info_set)
+        return min_dist(padded_info_set)
     else 
         error("Implement me!")
     end
 end
 
-function minDist(paddedInfoSet::Vector{Bool})
+function min_dist(padded_info_set::Vector{Bool})
     acc = 0
     inited = false
-    @inbounds for i ∈ 1:length(paddedInfoSet)
-        if paddedInfoSet[i]
-            w = polarRowWeigth0(i-1)
+    @inbounds for i ∈ 1:length(padded_info_set)
+        if padded_info_set[i]
+            w = polar_row_weight_0(i-1)
             if !inited
                 acc = w
                 inited = true
@@ -111,89 +112,89 @@ function minDist(paddedInfoSet::Vector{Bool})
     end
     return acc
 end
-function paddedWeightIndex!(N::NAT, w::NAT, dst::Vector{Bool})
+function padded_weight_index!(N::NAT, w::NAT, dst::Vector{Bool})
     @inbounds for i ∈ 1:N
-        dst[i] = polarRowWeigth0(i-1) == w
+        dst[i] = polar_row_weight_0(i-1) == w
     end
     return dst
 end
-paddedWeightIndex(N::NAT, w::NAT) = paddedWeightIndex!(N, w, zeros(Bool, N))
-not0(i0, N0) = (N0)⊻(i0)
-inKi0(j0, i0, N0) = begin
+padded_weight_index(N::NAT, w::NAT) = padded_weight_index!(N, w, zeros(Bool, N))
+not_zero(i0, N0) = (N0)⊻(i0)
+in_ki0(j0, i0, N0) = begin
     #N >= j > i && mergedPolarRowWeigth(i,j) == polarRowWeigth(i)
-    weight(not0(i0, N0)&j0) == 1
+    weight(not_zero(i0, N0)&j0) == 1
 end
-notInKi0(j0,i0,N0) = begin
+not_in_ki0(j0,i0,N0) = begin
     #N >= j > i && !(mergedPolarRowWeigth(i,j) == polarRowWeigth(i))
-    weight(not0(i0, N0)&(j0)) > 1
+    weight(not_zero(i0, N0)&(j0)) > 1
 end
-function maxPadded(paddedVector::Vector{Bool})
-    i = length(paddedVector)
-    while i > 0 && !paddedVector[i]
+function max_padded(padded_vector::Vector{Bool})
+    i = length(padded_vector)
+    while i > 0 && !padded_vector[i]
         i -= 1
     end
     (i == 0) && error("No max over an empty set")
     return i
 end
-function minWeightNumber(paddedInfoSet::Vector{Bool}, minWeight::NAT)
+function min_weight_number(padded_info_set::Vector{Bool}, min_weight::NAT)
     """
         This assumes the infoset I satisfies the partial order property.
         We here rely on the paper by Rowshan : On the formation of min-weight
         Codewords of Polar/PAC codes and its applications.
     """
-    N = length(paddedInfoSet)
+    N = length(padded_info_set)
     N0 = N-1
     n = convert(NAT, log2(N))
     n0 = n-1
-    minWeightN = 0
-    @inbounds for i in eachindex(paddedInfoSet)
+    min_weight_n = 0
+    @inbounds for i in eachindex(padded_info_set)
         i0 = i-1
-        if paddedInfoSet[i] && polarRowWeigth0(i0) == minWeight
+        if padded_info_set[i] && polar_row_weight_0(i0) == min_weight
             #println("Found $i ∈ I_wmin : $(bitstring(i-1))")
-            KiLength = weight(not0(i0, N0))
+            ki_length = weight(not_zero(i0, N0))
             for k0 in 0:n0
                 if (i0>>k0)&1 == 1
                     #println("Found that $k ∈ supp($(i-1))")
                     for l in (k0+1):n0
                         #println("for $l : ¬i_l = $(((i0>>l)&1)⊻1)")
-                        KiLength += ((i0>>l)&1)⊻1
+                        ki_length += ((i0>>l)&1)⊻1
                     end
                 end 
             end
-            #println("|K_i| = $KiLength")
-            minWeightN += (1 << KiLength)
-            #println("New min weightN = $minWeightN")
+            #println("|K_i| = $ki_length")
+            min_weight_n += (1 << ki_length)
+            #println("New min weightN = $min_weight_n")
         end
     end
-    return minWeightN
+    return min_weight_n
 end
-function minWeightNumber3(paddedInfoSet::Vector{Bool}, minWeight::NAT)
-    lengthN = 0
-    N = length(paddedInfoSet)
+function min_weight_number_3(padded_info_set::Vector{Bool}, min_weight::NAT)
+    length_n = 0
+    N = length(padded_info_set)
     N0 = N-1
-    @inbounds for i ∈ eachindex(paddedInfoSet)
+    @inbounds for i ∈ eachindex(padded_info_set)
         i0 = i-1
-        if paddedInfoSet[i] && polarRowWeigth0(i0) == minWeight
-            lenghtK = 0
+        if padded_info_set[i] && polar_row_weight_0(i0) == min_weight
+            length_k = 0
             for j0 ∈ i0+1:N0
-                if polarRowWeigth0(j0) >= mergedPolarRowWeigth0(i0,j0) == minWeight
-                    lenghtK += 1
+                if polar_row_weight_0(j0) >= merged_polar_row_weight_0(i0,j0) == min_weight
+                    length_k += 1
                 end
             end
-            lengthN += (1 << lenghtK)
+            length_n += (1 << length_k)
         end
     end
-    return lengthN
+    return length_n
 end
-function minWeightNumber(paddedInfoSet::Vector{Bool}, merging::Vector{NTuple{2, NAT}}, wmin::NAT)
-    N = length(paddedInfoSet)
+function min_weight_number(padded_info_set::Vector{Bool}, merging::Vector{NTuple{2, NAT}}, wmin::NAT)
+    N = length(padded_info_set)
     N0 = N-1
     μ0(i0, j0, k0) = begin
-        return (not0(i0, N0)&(j0|k0))|(j0&k0)
+        return (not_zero(i0, N0)&(j0|k0))|(j0&k0)
     end
-    function updateMessage(i0,j0,u)
+    function update_message(i0,j0,u)
         for k0 ∈ (i0+1):(j0-1) 
-            if u[k0+1] == 1 && (not0(i0,N0)&(j0)&(k0)) == 0
+            if u[k0+1] == 1 && (not_zero(i0,N0)&(j0)&(k0)) == 0
                 u[μ0(i0,j0,k0)+1] ⊻= 1 
             end
         end
@@ -210,23 +211,23 @@ function minWeightNumber(paddedInfoSet::Vector{Bool}, merging::Vector{NTuple{2, 
     fistar0(i0) = begin
         j0 = N-1
         while j0 > i0
-            if notInKi0(j0,i0,N0) && !paddedInfoSet[j0+1]
+            if not_in_ki0(j0,i0,N0) && !padded_info_set[j0+1]
                 return j0
             end
             j0 -= 1
         end
         return i0
     end
-    function enumarteSubtree(i0, j0, u)
+    function enumarte_subtree(i0, j0, u)
         #println("Here we go :D ($i, $j, $u)")
         awmin = 0
-        u = updateMessage(i0,j0,copy(u))
+        u = update_message(i0,j0,copy(u))
         for k0 ∈ (j0+1):fistar0(i0)
-            if paddedInfoSet[k0+1] && inKi0(k0,i0,N0)
-                awmin += enumarteSubtree(i0, k0, u)
-            elseif !paddedInfoSet[k0+1] && u[k0+1] != xor(i0,k0,u)
-                if inKi0(k0,i0,N0)
-                    u = updateMessage(i0,k0,u)
+            if padded_info_set[k0+1] && in_ki0(k0,i0,N0)
+                awmin += enumarte_subtree(i0, k0, u)
+            elseif !padded_info_set[k0+1] && u[k0+1] != xor(i0,k0,u)
+                if in_ki0(k0,i0,N0)
+                    u = update_message(i0,k0,u)
                 else
                     return awmin
                 end
@@ -236,26 +237,26 @@ function minWeightNumber(paddedInfoSet::Vector{Bool}, merging::Vector{NTuple{2, 
     end
     #print("Compute matrix representation...")
     T = zeros(BIT, (N,N))
-    @inbounds for i ∈ eachindex(paddedInfoSet)
-        T[i, i] = paddedInfoSet[i]
+    @inbounds for i ∈ eachindex(padded_info_set)
+        T[i, i] = padded_info_set[i]
     end
     for t ∈ merging
         T[t[1], t[2]] = 1
     end 
-    T[paddedInfoSet, :] .= rref!(T[paddedInfoSet, :])
+    T[padded_info_set, :] .= rref!(T[padded_info_set, :])
     #println("done")
     nweight = 0
-    for i ∈ eachindex(paddedInfoSet)
+    for i ∈ eachindex(padded_info_set)
         i0 = i-1
-        if paddedInfoSet[i] && polarRowWeigth0(i0) == wmin
+        if padded_info_set[i] && polar_row_weight_0(i0) == wmin
             #println("Found $i ∈ I_wmin")
             f0 = fistar0(i0)
             #println("Compute fstar : $f")
             expo = count(j0 -> begin
-                paddedInfoSet[j0+1] && inKi0(j0, i0, N0)
+                padded_info_set[j0+1] && in_ki0(j0, i0, N0)
             end, f0:N0)
             #println("Computed exp $expo")
-            c = enumarteSubtree(i0, i0, zeros(BIT, N))
+            c = enumarte_subtree(i0, i0, zeros(BIT, N))
             nweight += c*(1<<expo)
         end
     end
@@ -265,106 +266,106 @@ end
 """
     Note : this function should never be directly called, please prefer its alternative signature who saves compuation results
 """
-function merge_rows(paddedInfoSet::Vector{Bool}, forbiden_set::Vector{NAT})
-   N = length(paddedInfoSet)
+function merge_rows(padded_info_set::Vector{Bool}, forbiden_set::Vector{NAT})
+   N = length(padded_info_set)
 
     D = zeros(Bool, N)
-    optD = zeros(Bool, N)
+    opt_d = zeros(Bool, N)
 
     R = Vector{NTuple{2,NAT}}([])
-    optR = R
+    opt_r = R
     
-    Itrans = zeros(Bool, N)
-    Fstar = zeros(Bool, N)
-    Floser = zeros(Bool, N)
-    Ftrans = Fstar
+    i_trans = zeros(Bool, N)
+    f_star = zeros(Bool, N)
+    f_loser = zeros(Bool, N)
+    f_trans = f_star
 
 
-    dmin = minDist(paddedInfoSet, R)
-    dmintrans= 0
-    optDmin = 0
+    dmin = min_dist(padded_info_set, R)
+    dmin_trans= 0
+    opt_dmin = 0
 
-    admin = minWeightNumber(paddedInfoSet, R, dmin)
-    admintrans = 0
-    optAdmin = 0
+    admin = min_weight_number(padded_info_set, R, dmin)
+    admin_trans = 0
+    opt_admin = 0
 
-    increaseWeight = true
+    increase_weight = true
     
     while true
-        optDmin = dmin
-        optAdmin = admin
-        @LOG ROWMERGE_TAG "On main loop with increase_weight=$increaseWeight : opt_dmin=$optDmin, opdAdmin = $optAdmin"
-        paddedWeightIndex!(N, optDmin, Itrans)
-        for i ∈ eachindex(Itrans)
-            if Itrans[i]
-                increasingWeightFrozenRows!(paddedInfoSet, i, Fstar, Floser)
-                all(j -> !j, Fstar) && continue
+        opt_dmin = dmin
+        opt_admin = admin
+        @LOG ROWMERGE_TAG "On main loop with increase_weight=$increase_weight : opt_dmin=$opt_dmin, opdAdmin = $opt_admin"
+        padded_weight_index!(N, opt_dmin, i_trans)
+        for i ∈ eachindex(i_trans)
+            if i_trans[i]
+                increasing_weight_frozen_rows!(padded_info_set, i, f_star, f_loser)
+                all(j -> !j, f_star) && continue
 
-                if increaseWeight
-                    Fstar .&= .!D
-                    Ftrans = Fstar
+                if increase_weight
+                    f_star .&= .!D
+                    f_trans = f_star
                 else
-                    Floser .|= Fstar
-                    Floser .&= .!D
-                    Ftrans = Floser
+                    f_loser .|= f_star
+                    f_loser .&= .!D
+                    f_trans = f_loser
                 end
                 c = 0
-                for b in eachindex(Ftrans)
-                    if c <= 2 && Ftrans[b] && b ∉ forbiden_set
+                for b in eachindex(f_trans)
+                    if c <= 2 && f_trans[b] && b ∉ forbiden_set
                         b <= i && ERROR(ROWMERGE_TAG, "Should consider higher indices for merging rows")
                         c += 1
-                        Rtrans = copy(R)
+                        r_trans = copy(R)
                         t::NTuple{2, NAT} = NTuple{2, NAT}((i,b))
-                        push!(Rtrans, t)
+                        push!(r_trans, t)
                         @LOGD row_merge_tag "   Found merge candidate $t"
-                        dmintrans = minDist(paddedInfoSet, Rtrans)
-                        if dmintrans >= optDmin
+                        dmin_trans = min_dist(padded_info_set, r_trans)
+                        if dmin_trans >= opt_dmin
                             @LOGD ROWMERGE_TAG "     Computing admin for a merge at index $b..."
-                            admintrans = minWeightNumber(paddedInfoSet, Rtrans, dmintrans)
-                            @LOG ROWMERGE_TAG "w=$dmintrans admin=$admintrans"
-                            if dmintrans > optDmin || admintrans < optAdmin
-                                @LOG ROWMERGE_TAG "Merges improve results : new opt_dmin=$dmintrans, new opt_admin=$admintrans"
-                                optDmin = dmintrans
-                                optAdmin = admintrans
-                                copy!(optD, D)
-                                optD[b] = true
-                                optR = Rtrans
+                            admin_trans = min_weight_number(padded_info_set, r_trans, dmin_trans)
+                            @LOG ROWMERGE_TAG "w=$dmin_trans admin=$admin_trans"
+                            if dmin_trans > opt_dmin || admin_trans < opt_admin
+                                @LOG ROWMERGE_TAG "Merges improve results : new opt_dmin=$dmin_trans, new opt_admin=$admin_trans"
+                                opt_dmin = dmin_trans
+                                opt_admin = admin_trans
+                                copy!(opt_d, D)
+                                opt_d[b] = true
+                                opt_r = r_trans
                             end
                         end
                     end
                 end
             end
         end
-        if optDmin > dmin || optAdmin < admin
-            copy!(D,optD)
-            R = optR
-            dmin = optDmin
-            admin = optAdmin
-        elseif increaseWeight
-            increaseWeight = false
+        if opt_dmin > dmin || opt_admin < admin
+            copy!(D,opt_d)
+            R = opt_r
+            dmin = opt_dmin
+            admin = opt_admin
+        elseif increase_weight
+            increase_weight = false
         else
             @LOG ROWMERGE_TAG "Found $(length(R)) merges"
             return R
         end
     end
 end
-function merge_rows(infoset::Vector{NAT}, N::NAT, forbiden_set::Vector{NAT})
-    id =  merges_already_present(N, infoset, forbiden_set)
+function merge_rows(info_set::Vector{NAT}, N::NAT, forbiden_set::Vector{NAT})
+    id =  merges_already_present(N, info_set, forbiden_set)
     if id > 0 
         @LOG ROWMERGE_TAG "merges already computed"
         return merges_fetch(id)
     end
-    padded_infoset = zeros(Bool, N)
-    @inbounds for i in infoset
-        padded_infoset[i] = true
+    padded_info_set = zeros(Bool, N)
+    @inbounds for i in info_set
+        padded_info_set[i] = true
     end
-    merges = merge_rows(padded_infoset, forbiden_set)
-    dump_merges(N, infoset, forbiden_set, merges)
+    merges = merge_rows(padded_info_set, forbiden_set)
+    dump_merges(N, info_set, forbiden_set, merges)
     return merges
 end
-merge_rows(infoset::Vector{NAT}, N::NAT) = merge_rows(infoset, N, zeros(NAT, 0))
+merge_rows(info_set::Vector{NAT}, N::NAT) = merge_rows(info_set, N, zeros(NAT, 0))
 
-function rm_K(r::NAT, n::NAT)
+function rm_k(r::NAT, n::NAT)
     acc = 0
     for l ∈ 0:r
         acc += binomial(n,l)
@@ -390,8 +391,8 @@ function target_next_rm_code(N::NAT, K::NAT, reliabilities::Vector{REAL}, forbid
         r = find_least_r(n, k)
         r < 0 && break 
         threshold = (1 << (n-r))
-        rmInfoSet = filter(i -> polarRowWeigth0(i-1) >= threshold && i ∉ forbiden_set, ranking)
-        length(rmInfoSet) >= K && return NAT.(rmInfoSet[1:K])
+        rm_info_set = filter(i -> polar_row_weight_0(i-1) >= threshold && i ∉ forbiden_set, ranking)
+        length(rm_info_set) >= K && return NAT.(rm_info_set[1:K])
         k += 1
     end
     ERROR(ROWMERGE_TAG, "Couldn't find any merges for N=$N, K=$K")
