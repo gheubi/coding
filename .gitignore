@@ -3,3 +3,5 @@
 *.txt
 polar_ref
 shaping_sim*
+src/plotter/
+*.py 
