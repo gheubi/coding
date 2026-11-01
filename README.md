@@ -22,7 +22,6 @@ The codebase is organized around a set of reusable utilities and simulation pipe
 │   ├── channel/               # Channel models and simulations
 │   ├── channel_coding/        # Channel coding implementations and decoders
 │   ├── distribution_matching/ # Distribution matching logic and simulations
-│   ├── plotter/               # Plotting utilities
 │   ├── source_coding/         # Lossy source coding implementations
 │   └── utils/                 # Generic helpers, entropy, parser, DB, CRC, etc.
 ├── test/
@@ -68,7 +67,6 @@ This project is intended for research and simulation work around:
 
 - polar code design and decoding
 - constrained coding and dynamic frozen bits
-- rate-compatible/polynomial-based structures
 - reliability analysis under noisy channels
 - distribution matching and shaping for communication systems
 
