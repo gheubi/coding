@@ -1,3 +1,10 @@
+
+#=
+    A noiseless channel is a channel that does not add any noise to the input signal. 
+    The channel is defined by the following parameters:
+        - N: the number of symbols to transmit
+    The channel is implemented as a wrapper around a vector that stores the last signal power of the channel
+=#
 struct NoiselessChannel{U} <: Channel{U,U} 
     last_signal_pow::Vector{REAL}
 end

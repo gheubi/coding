@@ -1,10 +1,16 @@
 using Distributions
 
+#=
+    An binary symmetric channel is a channel that flips the input bits with a certain probability. 
+    The channel is defined by the following parameters:
+        - p: the flip probability of the channel
+    The channel is implemented using the Bernoulli distribution from the Distributions.jl package.
+=#
 struct BSC <: Channel{BIT, BIT}
-    _flip_prob::REAL
-    _underlying_ber::Bernoulli{REAL}
-    _last_gen_noise::Vector{REAL}
-    _last_signal_pow::Vector{REAL}
+    _flip_prob::REAL                        # flip probability of the channel
+    _underlying_ber::Bernoulli{REAL}        # underlying Bernoulli distribution used to generate flips
+    _last_gen_noise::Vector{REAL}           # last generated noise power of the channel, which is the number of symbols that were flipped during the last call to transmit!()
+    _last_signal_pow::Vector{REAL}          # last signal power of the channel, which is the number of symbols that were transmitted during the last call to transmit!()
     function BSC(p::REAL)
         0 <= p <= 0.5 || ERROR(BSC_TAG, "$p should be within [0, 0.5]")
         new(p, Bernoulli(p), zeros(REAL, NDEFAULT), zeros(REAL, NDEFAULT))

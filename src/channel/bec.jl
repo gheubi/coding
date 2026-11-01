@@ -1,11 +1,16 @@
 using Distributions
 
-
+#=
+    An additive white Gaussian noise channel is a channel that adds Gaussian noise to the input signal. 
+    The channel is defined by the following parameters:
+        - sigma: the standard deviation of the noise
+    The channel is implemented using the Normal distribution from the Distributions.jl package.
+=#
 struct BEC <: Channel{BIT, BIT}
-    _erasure_prob::REAL
-    _underlying_ber::Bernoulli{REAL}
-    _last_gen_noise::Vector{REAL}
-    _last_signal_pow::Vector{REAL}
+    _erasure_prob::REAL                 # erasure probability of the channel
+    _underlying_ber::Bernoulli{REAL}    # underlying Bernoulli distribution used to generate erasures
+    _last_gen_noise::Vector{REAL}       # last generated noise power of the channel, which is the number of symbols that were flipped during the last call to transmit!()
+    _last_signal_pow::Vector{REAL}      # last signal power of the channel, which is the number of symbols that were transmitted during the last call to transmit!()
     function BEC(p::REAL)
         0 <= p <= 1|| ERROR(BEC_TAG, "$p is not a valid erasure probability")
         new(p, Bernoulli(p), zeros(REAL, NDEFAULT), zeros(REAL, NDEFAULT))
