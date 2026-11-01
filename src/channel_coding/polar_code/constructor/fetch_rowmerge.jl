@@ -1,8 +1,8 @@
 using CSV, DataFrames
 
 
-const rm_params_path = "src/channel_coding/polar_code/constructor/data/row_merges_param.csv"
-const rm_data_path = "src/channel_coding/polar_code/constructor/data/row_merges.csv"
+const rm_params_path = "data/code/polar/row_merges_param.csv"
+const rm_data_path = "data/code/polar/row_merges.csv"
 
 function merges_already_present(blocklength::NAT, rate_profile::Vector{NAT}, forbiden_set::Vector{NAT}) 
     rp = "$rate_profile"

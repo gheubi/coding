@@ -1,7 +1,7 @@
 using CSV, DataFrames
 
-const lossy_param_path = "src/source_coding/lossy/simulation/data/lossy_coding_params.csv"
-const lossy_data_path = "src/source_coding/lossy/simulation/data/lossy_coding_sim.csv"
+const lossy_param_path = "data/code/simulation/lossy_coding_params.csv"
+const lossy_data_path = "data/code/simulation/lossy_coding_sim.csv"
 
 function already_simulated(code::LossyCode{U,X,Y}) where {U,X,Y}
     df = CSV.read(lossy_param_path, DataFrame)

@@ -1,7 +1,7 @@
 using CSV, DataFrames
 
-const distribution_matching_params_path = "src/distribution_matching/simulation/data/distribution_matching_params.csv"
-const distribution_matching_data_path = "src/distribution_matching/simulation/data/distribution_matching_sim.csv"
+const distribution_matching_params_path = "data/code/simulation/distribution_matching_params.csv"
+const distribution_matching_data_path = "data/code/simulation/distribution_matching_sim.csv"
 
 function already_simulated(dm::DistributionMatcher{X}) where {X}
     df = CSV.read(distribution_matching_params_path, DataFrame)

@@ -1,7 +1,7 @@
 using CSV, DataFrames
 
-const entropy_path_param = "src/channel_coding/polar_code/bit_channel_entropies/data/polarized_entropies_params.csv"
-const entropy_path_data = "src/channel_coding/polar_code/bit_channel_entropies/data/polarized_entropies.csv"
+const entropy_path_param = "data/code/polar/polarized_entropies_params.csv" 
+const entropy_path_data = "data/code/polar/polarized_entropies.csv"
 
 function entropy_data_already_present(N::NAT, p1::REAL, W::Channel{BIT,Y}) where {Y}
     df = CSV.read(entropy_path_param, DataFrame)

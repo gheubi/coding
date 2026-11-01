@@ -1,8 +1,8 @@
 using CSV, DataFrames
 
-const channel_params_path = "src/channel_coding/simulation/data/channel_coding_params.csv"
-const channel_sim_path = "src/channel_coding/simulation/data/channel_coding_sim.csv"
-const channel_dm_path = "src/channel_coding/simulation/data/distribution_matching_sim.csv"
+const channel_params_path = "data/code/simulation/channel_coding_params.csv"
+const channel_sim_path = "data/code/simulation/channel_coding_sim.csv"
+const channel_dm_path = "data/code/simulation/distribution_matching_sim.csv"
 
 function channel_code_already_present(code::Code{U,X,REAL}, constellation::AbstractString, change_chann::Bool) where {U,X}
     constellation in ["OOK", "BPSK"] || ERROR(CHANNEL_SIM_DATA_TAG, "$constellation is not a known constellation")
