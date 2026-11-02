@@ -1,5 +1,8 @@
 using CSV, DataFrames
 
+# checks is a similar polar code has already been simulates
+# two polar codes are similar if they agree up to the frozen bits values
+# (except all zero frozen vector, which is considered to be different from any other frozen vector values)
 function polar_code_already_present_up_to_fv(code::PolarCode{T}) where {T}
     c = "$code"
     c_chunks = split(c, ";statically_frozen_vec=[")
@@ -17,12 +20,34 @@ function polar_code_already_present_up_to_fv(code::PolarCode{T}) where {T}
     end
     return ("", -1)
 end
+
+# extracts the frozen vector from a polarcode string
 function get_frozen_vec(s::AbstractString)
     s = split(split(s, "statically_frozen_vec=")[2], ';')[1]
     fv = parse_vector(BIT, s)
     return fv
 end
 
+#=
+    creates a polar code
+
+    @param blocklength : the blocklength of the polar code, should be a power of 2
+    @param statically_frozen_set : the set of statically frozen bits
+    @param dynamically_frozen_set : the set of dynamically frozen bits
+    @param shaping_set : the set of shaping bits
+    @param dynamically_shaping_set : the set of dynamically shaping bits
+    @param information_set : the set of information bits
+    @param statically_frozen_vec : the value of the statically frozen bits
+    @param encoding_list : the encoding list size, should be a power of 2
+    @param decoding_list : the decoding list size, should be a power of 2
+    @param source_p : the target binary-distribution of the codewords
+    @param channel : the design channel used for the code constructiom
+    @param dynamic_frozen_bit_f : the structure describing the computation of the dynamic frozen bits
+    @param dynamic_shaping_bit_f : the structure describing the computation of the dynamic shaping bits
+    @param version_number : the version number of the polar code, default 1 (1 is the only supported version for now)
+
+    @return a polar code with the specified parameters
+=#
 function create_polar_code(
     blocklength::NAT,
     statically_frozen_set::Vector{Bool},
@@ -140,6 +165,26 @@ function create_polar_code(
     return pc
 end
 
+#=
+    creates a polar code
+
+    @param blocklength : the blocklength of the polar code, should be a power of 2
+    @param statically_frozen_set : the set of statically frozen bits
+    @param dynamically_frozen_set : the set of dynamically frozen bits
+    @param shaping_set : the set of shaping bits
+    @param dynamically_shaping_set : the set of dynamically shaping bits
+    @param information_set : the set of information bits
+    @param statically_frozen_vec : the value of the statically frozen bits
+    @param encoding_list : the encoding list size, should be a power of 2
+    @param decoding_list : the decoding list size, should be a power of 2
+    @param source_p : the target binary-distribution of the codewords
+    @param channel : the design channel used for the code constructiom
+    @param dynamic_frozen_bit_f : the structure describing the computation of the dynamic frozen bits
+    @param dynamic_shaping_bit_f : the structure describing the computation of the dynamic shaping bits
+    @param version_number : the version number of the polar code, default 1 (1 is the only supported version for now)
+
+    @return a polar code with the specified parameters
+=#
 function create_polar_code(
     blocklength::NAT,
     statically_frozen_set::Vector{NAT},
@@ -164,7 +209,7 @@ function create_polar_code(
     length(unique(dynamically_frozen_set)) == length(dynamically_frozen_set) || ERROR(POLAR_CODE_CONSTRUCTOR_TAG, "Input set contains duplicates")
     length(unique(shaping_set)) == length(shaping_set) || ERROR(POLAR_CODE_CONSTRUCTOR_TAG, "Input set contains duplicates")
     length(unique(dynamically_shaping_set)) == length(dynamically_shaping_set) || ERROR(POLAR_CODE_CONSTRUCTOR_TAG, "Input set contains duplicates")
-    length(unique(information_set)) == length(information_set) || ERROR(POLAR_CODE_CONSTRUCTOR_TAG, "Input set contains duplicates")
+    length(unique(information_set)) == length(information_set) || ERROR(POLAR_CODE_CONSTRUCTOR_TAG, "Input set contaidynamic_shaping_bit_fns duplicates")
     length(statically_frozen_vec) == length(statically_frozen_set) || ERROR(POLAR_CODE_CONSTRUCTOR_TAG, "Input frozen vector has wrong size")
 
     sum = length(statically_frozen_set) + length(dynamically_frozen_set) +  length(shaping_set) + length(dynamically_shaping_set) + length(information_set) 
@@ -225,6 +270,50 @@ function create_polar_code(
     )
 end
 
+#=
+    creates a polar code
+
+    @param args : a dic containing the values to create the polar code, it should contain the following keys 
+        - "blocklength" : the blocklength of the code, should be a power of 2
+        - "design_channel" : the design channel used to construct the code by selecting the reliable bit-channels
+        - "p" : the target bitwise binary-distribution of the codewords
+        - "shaping_rate" : the shaping rate of the code (1 - #number of bits used for shaping/blocklength)
+        - "dynamic_shaping_constraint" : the type of dynamic shaping constraint, should be among :
+            - "none" : no dynamic shaping constraint
+            - "crc" : use crc-check, if used, the following keys must be added:
+                - "shaping_crc_width" : the number of crc bits
+                - "shaping_poly" : the crc binary polynomial used to compute the remainder
+                - "shaping_known_at_decoding" : determines whether the dynamic shaping bits are computed during the SCL
+                    computation, or after in order to select the most-likely valid path
+            - "rowmerge" : use row-merging. Uf used, the algortihm will select a set of merges and the shaping rate will be 
+                adapted based on the number of merges found. In that case, the resulting code will have a different shaping
+                rate as the one specified in args.
+            - "paritycheck" : the k indices are selected to be encoded as the binary sum of the log2(min(encdoingL, decodingL)).
+                preceeding bits. If used, the following key must be added:
+                - "shaping_k_pc_constraints" : the number of parity check bits
+                The indices for partiy check bits are found as the most-relibable (with respect to source polarization), non-used for shaping bits
+        - "encoding_list" : the encoding list size, should be a power of 2
+        - "rate" : the communication rate of the code
+        - "dynamic_frozen_constraint" : the type if dynamic frozen bits constraint, should be among :
+            - "none" : no dynamic frozen bits constraint
+            - "crc" : use crc-check, if used, the following keys must be added:
+                - "frozen_crc_width" : the number of crc bits
+                - "frozen_poly" : the crc binary polynomial used to compute the remainder
+                - "frozen_known_at_decoding" : determines whether the dynamic frozen bits are computed during the SCL
+                    computation, or after in order to select the most-likely valid path
+            - "rowmerge" : use row-merging. Uf used, the algortihm will select a set of merges and the rate will be 
+                adapted based on the number of merges found. In that case, the resulting code will have a different rate
+                rate as the one specified in args.
+                @warning the rowmerge procedure will likely fail to found optimal merges if there are some shaping bits and/or
+                    dynamical shaping bits.
+            - "paritycheck" : the k indices are selected to be encoded as the binary sum of the log2(min(encdoingL, decodingL)).
+                preceeding bits. If used, the following key must be added:
+                - "info_k_pc_constraints" : the number of parity check bits
+                The indices for partiy check bits are found as the most-relibable (with respect to channel polarization), non-used for information bits
+        - "uniform_forzen_vec" : if false, the frozen vector is all 0, otherwise it is set uniformly at random.
+
+    @return a polar code with the specified parameters
+=#
 function get_polar_code(args)
     blocklength = args["blocklength"]
     ispow2(blocklength) || ERROR(POLAR_CODE_CONSTRUCTOR_TAG, "blocklength should be a power a two ($blocklength)")
@@ -365,47 +454,5 @@ function get_polar_code(args)
         design_w,
         froz_const,
         shap_const
-    )
-end
-
-function create_good_ook_polar_code(args)
-    blocklength = args["blocklength"]
-    ispow2(blocklength) || ERROR(POLAR_CODE_CONSTRUCTOR_TAG, "blocklength should be a power a two ($blocklength)")
-    design_w = args["design_channel"]
-    source_p = args["p"]
-    0 <= source_p <= 1 || ERROR(POLAR_CODE_CONSTRUCTOR_TAG, "$source_p is not a valid probability distribution")
-
-    hs, hw = get_entropies_for_source_and_channel(blocklength, source_p, design_w)
-    mutual_info = [hs[i] - hw[i] for i in 1:blocklength]
-    mutual_info_ranking = sort(1:blocklength, by=i->mutual_info[i])
-
-    rs = h2(source_p)
-    shaping_set = mutual_info_ranking[1:27]#mutual_info_ranking[1:floor(NAT, blocklength*(1-rs + 1/16))]
-    dynamic_shaping_set = zeros(NAT, 0)
-    rc = conditional_entropy_ook(source_p, design_w._w._sigma)
-    K = floor(NAT, blocklength*rc)
-    info_set = mutual_info_ranking[end-K+1:end]
-    dynamic_frozen_set = zeros(NAT,0)
-    frozen_set = filter(
-        i -> i ∉ shaping_set && i ∉ dynamic_shaping_set &&  i ∉ info_set && i ∉ dynamic_shaping_set,
-        1:blocklength
-    )
-    froz_const = NoneConstraint()
-    shap_const = NoneConstraint()
-    return create_polar_code(
-        blocklength,
-        frozen_set,
-        dynamic_frozen_set,
-        shaping_set,
-        dynamic_shaping_set,
-        info_set,
-        args["uniform_forzen_vec"] ? gen_uniform_binary_vec(BIT, length(frozen_set)) : zeros(BIT, length(frozen_set)),
-        args["encoding_list"],
-        args["decoding_list"],
-        source_p,
-        design_w,
-        froz_const,
-        shap_const,
-        2
     )
 end
