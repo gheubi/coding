@@ -8,7 +8,7 @@ function polar_code_already_present_up_to_fv(code::PolarCode{T}) where {T}
     c_chunks = split(c, ";statically_frozen_vec=[")
     c_chunkss = split(c_chunks[2],';')[2:end]
 
-    df = CSV.read("src/channel_coding/simulation/data/channel_coding_params.csv", DataFrame)
+    df = CSV.read("data/simulation/channel_coding_params.csv", DataFrame)
     for row in eachrow(df)
         r_chunks = split(row.code, ";statically_frozen_vec=[")
         length(r_chunks) != 2 && continue
