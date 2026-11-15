@@ -27,7 +27,7 @@ function get_default_poly(width::NAT)
     end
 end
 
-function get_crc_constraint(width::NAT, poly::Vector{BIT}, K::NAT, indexes::Vector{NAT}, visibles::Vector{Bool},version_number::NAT=1)
+function get_crc_constraint(width::NAT, poly::Vector{BIT}, K::NAT, indexes::Vector{NAT}, visibles::Vector{Bool},version_number::NAT=2)
     @LOGV PCDC_CONSTRAINT_CRC_TAG "generating constraints"
     length(indexes) == width || ERROR(PCDC_CONSTRAINT_CRC_TAG, "indexes don't have matching size")
     length(unique(indexes)) == length(indexes) || ERROR(PCDC_CONSTRAINT_CRC_TAG, "indexes contain duplicates")
@@ -57,7 +57,7 @@ get_crc_constraint(width::NAT, poly::Vector{BIT}, K::NAT, indexes::Vector{NAT},v
 get_crc_constraint(width::NAT, K::NAT, indexes::Vector{NAT},version_number::NAT=1) = get_crc_constraint(width, get_default_poly(width), K, indexes,version_number)
 
 function compress!(u::Vector{BIT}, select_index::Vector{Bool}, dst::Vector{BIT})
-    (count(select_index) == length(dst) && length(u) == length(select_index)) || 
+    (count(select_index) <= length(dst) && length(u) == length(select_index)) || 
         ERROR(PCDC_CONSTRAINT_CRC_TAG, "cannot compress vector ($(count(select_index)) selected index for a dest of length $(length(dst)))")
 
     dst_counter = 1
@@ -103,6 +103,7 @@ end
 
 function crc_compute!(width::NAT, poly::Vector{BIT}, work::Vector{BIT}, dst::Vector{BIT})
     extended = length(work)
+    @check extended >= width || ERROR(PCDC_CONSTRAINT_CRC_TAG, "work tape is shorter than CRC width")
     n = extended - width
     @check width == length(dst) || ERROR(PCDC_CONSTRAINT_CRC_TAG, "destination tape's size does not match width ($(length(dst)) != $width)")
     @check width+1 == length(poly) || ERROR(PCDC_CONSTRAINT_CRC_TAG, "polynomial length doesn't match width (should be $(width+1), is $(length(poly)))")
@@ -146,10 +147,11 @@ function get_or_compute(C::CrcConstraint, h::UInt, work_tape::Vector{BIT})
     return res 
 end
 
-
 (C::CrcConstraint)(u::Vector{BIT}, select_index::Vector{Bool}, index::NAT) = begin
     @LOGV PCDC_CONSTRAINT_CRC_TAG "Computing dynamic bit at $index"
-    @check count(select_index) == length(C._work_tapes[1]) || ERROR(PCDC_CONSTRAINT_CRC_TAG, "length of selected indices doesn't match work tapes")
+    @check (C._version_number == 2 ? count(select_index) == length(C._work_tapes[1]) - C._width :
+        C._version_number == 1 ? count(select_index) == length(C._work_tapes) : false) || 
+        ERROR(PCDC_CONSTRAINT_CRC_TAG, "length of selected indices doesn't match work tapes")
     @check length(u) == length(select_index) || ERROR(PCDC_CONSTRAINT_CRC_TAG, "length of input vector u doesn't match that of selected index")
 
     index = translate_index(C, index)
