@@ -64,7 +64,7 @@ function channel_simulate_par(code::Code{BIT, BIT, Y}, W::Channel{BIT,Y}, min_it
     results = Vector{NamedTuple}(undef, NDEFAULT)
 
 
-    while (already_computed_fec + FEC < 150) && (frames <= max_iters)
+    while FEC < 150 && frames <= max_iters #(already_computed_fec + FEC < 150) && (frames <= max_iters)
         @LOGD CHANNEL_SIM_TAG "About to call other threads"
         Threads.@threads for t ∈ 1:NDEFAULT
             results[t] = @time channel_simulate_once(code, W, batch_size)
@@ -112,6 +112,8 @@ function sim_bawgn(
     0 < min_iters <= max_iters || ERROR(CHANNEL_SIM_TAG, "Invalid relation between iterations numbers (min:$min_weight, max:$max_iters)")
     0 < batch_size || ERROR(CHANNEL_SIM_TAG, "$batch_size is not a valid batch_size")
 
+    res = Dict{REAL, NamedTuple}()
+
     for snr_db in snrs_db
         @LOG CHANNEL_SIM_TAG "Simulating for blocklength=$(blocklength(code)) at snr=$snr_db 🤪"
         snr = value_from_db(snr_db)
@@ -119,8 +121,8 @@ function sim_bawgn(
         change_chann && set_channel(code, W)
         fec = channel_code_get_computed_fec(code, c, change_chann, snr_db)
         r = channel_simulate_par(code, W, min_iters, max_iters, batch_size, fec)
-        if save_results && r.iters > 0
-            channel_code_dump_bin_results(
+        if save_results
+            ret_fer, ret_frames = channel_code_dump_bin_results(
                 code,
                 c,
                 snr_db,
@@ -132,10 +134,12 @@ function sim_bawgn(
                 r.iters,
                 change_chann
             )
+            res[snr_db] = (fer=ret_fer, iters=ret_frames)
         else
             @LOG CHANNEL_SIM_TAG "at snr=$snr_db : r=$(rate(code)) sr=$(shaping_rate(code)) fec=$(r.fec) bec=$(r.bec) fer=$(r.fec/r.iters) avg_w=$(r.avg_weigth)"
+            res[snr_db] = (fer=r.fer, iters=r.iters)
         end
         @LOGD CHANNEL_SIM_TAG "done 😆"
     end
-
+    return res
 end

@@ -1,8 +1,8 @@
 using CSV, DataFrames
 
-const channel_params_path = "data/code/simulation/channel_coding_params.csv"
-const channel_sim_path = "data/code/simulation/channel_coding_sim.csv"
-const channel_dm_path = "data/code/simulation/distribution_matching_sim.csv"
+const channel_params_path = "data/simulation/channel_coding_params.csv"
+const channel_sim_path = "data/simulation/channel_coding_sim.csv"
+const channel_dm_path = "data/simulation/distribution_matching_sim.csv"
 
 function channel_code_already_present(code::Code{U,X,REAL}, constellation::AbstractString, change_chann::Bool) where {U,X}
     constellation in ["OOK", "BPSK"] || ERROR(CHANNEL_SIM_DATA_TAG, "$constellation is not a known constellation")
@@ -59,31 +59,38 @@ function channel_code_dump_sim_res(id::NAT, snr::REAL, bec::NAT, fec::NAT, frame
     0 <= fer <= 1 || ERROR(CHANNEL_SIM_DATA_TAG, "$fer is not in the validity range [0, 1]")
     0 <= ber <= 1 || ERROR(CHANNEL_SIM_DATA_TAG, "$ber is not in the validity range [0, 1]")
 
-
+    ret_fer = fer
+    ret_frames = frames
 
     df = CSV.read(channel_sim_path, DataFrame)
     found = false
     if channel_code_params_id_alread_in(id, df)
         for row in eachrow(df)
             if row.id == id && row.snr == snr
-                row.bec += bec
-                row.fec += fec
-                row.frames += frames
-                row.ber = row.bec / (message_len * row.frames)
-                row.fer = row.fec / row.frames
+                if frames != 0
+                    row.bec += bec
+                    row.fec += fec
+                    row.frames += frames
+                    row.ber = row.bec / (message_len * row.frames)
+                    row.fer = row.fec / row.frames
+                end
                 found = true
+                ret_fer = row.fer
+                ret_frames = row.frames
                 break
             end
         end
     end
     if !found
+        frames == 0 && ERROR(CHANNEL_SIM_DATA_TAG, "pushing new simulation results with 0 simulated frames")
         push!(df, [id, snr, fer, ber, frames, fec, bec], promote=true)
     end
     CSV.write(channel_sim_path, df)
-    return id
+    return ret_fer, ret_frames
 end
 
 function channel_code_dump_bin_shap_res(id::NAT, shap_rate::REAL, target_dist::REAL, target_snr::REAL, observed_dist::REAL, avg_sig_pow::REAL, avg_noise_pow::REAL, frames::NAT)
+    frames == 0 && return
     df = CSV.read(channel_dm_path, DataFrame)
     found = false
     if channel_code_params_id_alread_in(id, df)
@@ -122,8 +129,8 @@ function channel_code_dump_bin_results(
     @LOGD CHANNEL_SIM_DATA_TAG "dumping results..."
     constellation in ["OOK", "BPSK"] || ERROR(CHANNEL_SIM_DATA_TAG, "$constellation is not a known constellation")
     id = channel_code_dump_params(code, constellation,change_chann)
-    channel_code_dump_sim_res(id, snr, bec, fec, frames, messagelength(code))
+    ret_fer, ret_frames = channel_code_dump_sim_res(id, snr, bec, fec, frames, messagelength(code))
     channel_code_dump_bin_shap_res(id, shaping_rate(code), target_dist(code), snr, observed_dist, avg_sig_pow, avg_noise_pow, frames)
     @LOGD CHANNEL_SIM_DATA_TAG "dumping results done"
-    return id
+    return ret_fer, ret_frames
 end
