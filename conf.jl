@@ -13,7 +13,7 @@ const LOG_DEBUG_ACT = false
 const LOG_DEBUG_ALLOWED_TAG = ["PolarCode", "Channel Simulation"]
 const LOG_VERBOSE_ACT = false
 const LOG_VERBOSE_ALLOWED_TAG = ["Successive Cancellation Decoder"]
-const CHECK_ARGS = false 
+const CHECK_ARGS = true 
 const DEFAULT_MIN_ITERS = 100_000
 const DEFAULT_MAX_ITERS = 1_000_000
 const DEFAULT_BATCH_SIZE = 20_000
@@ -47,7 +47,6 @@ const LOSSY_SIM_DATA_TAG = "Lossy Simulation Data"
 const LOSSY_CODE_TAG = "Lossy Code"
 const LOSSY_SIM_TAG = "Lossy Simulation"
 const UTILS_COMPRESS_TAG = "Compressor Util"
-const UTILS_CRC_TAG = "CRC Util : I'm deprecated, please don't use me 😢 => you can adapt the crc algo in $PCDC_CONSTRAINT_CRC_TAG"
 const UTILS_DB_TAG = "dB Util"
 const UTILS_PARSER_TAG = "Parser Util"
 const UTILS_ENTROPY_TAG = "Entropy Util"
