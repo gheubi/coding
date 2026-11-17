@@ -56,8 +56,8 @@ function channel_code_dump_sim_res(id::NAT, snr::REAL, bec::NAT, fec::NAT, frame
     ber = bec / (message_len * frames)
     fer = fec / frames
 
-    0 <= fer <= 1 || ERROR(CHANNEL_SIM_DATA_TAG, "$fer is not in the validity range [0, 1]")
-    0 <= ber <= 1 || ERROR(CHANNEL_SIM_DATA_TAG, "$ber is not in the validity range [0, 1]")
+    frames == 0 || 0 <= fer <= 1 || ERROR(CHANNEL_SIM_DATA_TAG, "$fer is not in the validity range [0, 1]")
+    frames == 0 || 0 <= ber <= 1 || ERROR(CHANNEL_SIM_DATA_TAG, "$ber is not in the validity range [0, 1]")
 
     ret_fer = fer
     ret_frames = frames
